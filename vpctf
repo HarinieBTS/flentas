@@ -1,0 +1,73 @@
+provider "aws" {
+  region = "us-east-1"
+}
+
+# Import your existing VPC (replace cidr_block if you want to manage it fully)
+resource "aws_vpc" "lab_vpc" {
+  cidr_block = "10.0.0.0/16"
+  # You don't have to recreate VPC if you want to import it, but including here for completeness
+  tags = {
+    Name = "lab-vpc"
+  }
+}
+
+variable "public_subnet_ids" {
+  type    = list(string)
+  default = ["subnet-0f1b958a1c67a7fc2"]
+}
+
+variable "private_subnet_ids" {
+  type    = list(string)
+  default = [] # Add your private subnets here when you have them
+}
+
+variable "internet_gateway_id" {
+  default = "igw-0b22b22868befeef9"
+}
+
+variable "nat_gateway_id" {
+  default = "nat-0edf20bed442af79d"
+}
+
+# Public Route Table with IGW
+resource "aws_route_table" "public_rt" {
+  vpc_id = vpc-0f8b746d7a51f4895
+
+  route {
+    cidr_block = "0.0.0.0/0"
+    gateway_id = var.internet_gateway_id
+  }
+
+  tags = {
+    Name = "rt-public"
+  }
+}
+
+# Associate public subnet to public route table
+resource "aws_route_table_association" "public_assoc" {
+  for_each       = toset(var.public_subnet_ids)
+  subnet_id      = each.key
+  route_table_id = aws_route_table.public_rt.id
+}
+
+# Private Route Table with NAT
+resource "aws_route_table" "private_rt" {
+  vpc_id = vpc-0f8b746d7a51f4895
+
+  route {
+    cidr_block     = "0.0.0.0/0"
+    nat_gateway_id = var.nat_gateway_id
+  }
+
+  tags = {
+    Name = "rt-private"
+  }
+}
+
+# Associate private subnets to private route table
+resource "aws_route_table_association" "private_assoc" {
+  for_each       = toset(var.private_subnet_ids)
+  subnet_id      = each.key
+  route_table_id = aws_route_table.private_rt.id
+}
+
